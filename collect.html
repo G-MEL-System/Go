@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GMES Mobile Collect - Field Data Collection</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              800: '#0c4a6e',
+              900: '#0a3751',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Touch optimization */
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    input, textarea, select {
+      user-select: text;
+    }
+    /* Custom scrollbar for webkit */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-800 dark:text-slate-100 flex items-center justify-center min-h-screen p-0 sm:p-4 font-sans">
+
+  <!-- Mobile Device Container Outer Frame -->
+  <div class="w-full max-w-md h-screen sm:h-[844px] bg-white dark:bg-slate-900 sm:rounded-[40px] shadow-2xl flex flex-col overflow-hidden relative border-0 sm:border-8 border-slate-800">
+    
+    <!-- Top Status Bar Simulation -->
+    <div class="bg-slate-900 text-white px-5 pt-3 pb-2 flex justify-between items-center text-xs font-semibold select-none border-b border-slate-800 shrink-0">
+      <div id="status-time">09:41</div>
+      <div class="flex items-center space-x-2">
+        <span id="network-signal-icon"><i data-lucide="wifi" class="w-3.5 h-3.5 text-emerald-400"></i></span>
+        <!-- Online/Offline Simulator Toggle -->
+        <button id="toggle-online-btn" onclick="app.toggleOnlineMode()" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 hover:bg-emerald-500/30 transition">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" id="status-indicator-dot"></span>
+          <span id="status-text">ONLINE</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- App Header Header / Navigation Bar -->
+    <header class="bg-brand-700 text-white px-4 py-3 shadow-md flex items-center justify-between shrink-0">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center border border-white/20">
+          <i data-lucide="clipboard-check" class="w-5 h-5 text-amber-300"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-sm leading-none">GMES Collect</h1>
+          <p class="text-[10px] text-brand-100 mt-0.5" id="header-officer-info">Field Officer Mode</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <!-- Sync Queue Badge -->
+        <button onclick="app.openSyncModal()" class="relative p-2 bg-brand-800 hover:bg-brand-900 rounded-lg transition" title="View Sync Queue">
+          <i data-lucide="refresh-cw" id="sync-icon" class="w-4 h-4 text-brand-100"></i>
+          <span id="pending-count-badge" class="hidden absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-extrabold text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-brand-700">0</span>
+        </button>
+        <!-- Settings/Profile Button -->
+        <button onclick="app.openProfileModal()" class="p-2 bg-brand-800 hover:bg-brand-900 rounded-lg transition">
+          <i data-lucide="user" class="w-4 h-4 text-brand-100"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Content Views Area -->
+    <main class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900" id="main-content">
+      
+      <!-- FORM SELECTOR & PROJECT CARD -->
+      <section class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-3">
+        <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700/60 pb-2">
+          <label class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="folder" class="w-3.5 h-3.5 text-brand-500"></i> Active Assignment
+          </label>
+          <span class="text-[11px] bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-300 px-2 py-0.5 rounded-full font-medium" id="selected-project-code">PRJ-01</span>
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Select Project & Form Template</label>
+          <select id="form-selector" onchange="app.onFormSelectChange(this.value)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <!-- Dynamic Form Options Loaded Here -->
+          </select>
+        </div>
+      </section>
+
+      <!-- DYNAMIC FORM RENDER CONTAINER -->
+      <form id="dynamic-form" onsubmit="app.handleFormSubmit(event)" class="space-y-4">
+        <!-- Dynamic fields generated here -->
+      </form>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700/80 px-6 py-2.5 flex justify-around items-center shrink-0">
+      <button onclick="app.switchTab('form')" id="nav-btn-form" class="flex flex-col items-center gap-1 text-brand-600 dark:text-brand-400 transition">
+        <i data-lucide="file-text" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium">Form</span>
+      </button>
+      <button onclick="app.switchTab('history')" id="nav-btn-history" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+        <i data-lucide="history" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium">Log (<span id="history-counter">0</span>)</span>
+      </button>
+      <button onclick="app.openSyncModal()" id="nav-btn-sync" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+        <i data-lucide="cloud-upload" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium">Sync Queue</span>
+      </button>
+    </nav>
+
+    <!-- Toast Notification Overlay -->
+    <div id="toast-container" class="absolute bottom-16 left-4 right-4 z-50 pointer-events-none flex flex-col gap-2"></div>
+
+    <!-- MODAL 1: SYNC & OFFLINE QUEUE MANAGER -->
+    <div id="sync-modal" class="hidden absolute inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex flex-col justify-end transition-opacity">
+      <div class="bg-white dark:bg-slate-800 rounded-t-3xl p-5 space-y-4 max-h-[85%] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+        <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="cloud-lightning" class="w-5 h-5 text-brand-500"></i>
+            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">Data Sync Center</h3>
+          </div>
+          <button onclick="app.closeSyncModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="flex justify-between items-center bg-slate-100 dark:bg-slate-900 p-3 rounded-xl">
+          <div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Pending Unsynced Items</p>
+            <p id="modal-queue-count" class="text-lg font-bold text-slate-800 dark:text-slate-100">0 Record(s)</p>
+          </div>
+          <button id="manual-sync-btn" onclick="app.performManualSync()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs rounded-xl shadow-md transition flex items-center gap-2">
+            <i data-lucide="rotate-cw" class="w-4 h-4"></i> Sync Now
+          </button>
+        </div>
+
+        <!-- Sync Targets Information -->
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl">
+          <p class="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+            <i data-lucide="info" class="w-3.5 h-3.5"></i> Inter-App Sync Channels:
+          </p>
+          <ul class="list-disc list-inside space-y-0.5 text-[10px]">
+            <li><b>BroadcastChannel:</b> Real-time direct dispatch to active G-MEL dashboard tab.</li>
+            <li><b>Shared LocalStorage:</b> Automatic backup into <code>gmes_me_projects</code> submissions.</li>
+          </ul>
+        </div>
+
+        <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="queue-item-list">
+          <!-- Queued items will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 2: FIELD OFFICER PROFILE EDIT -->
+    <div id="profile-modal" class="hidden absolute inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 w-full space-y-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+        <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+          <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <i data-lucide="user-check" class="w-4 h-4 text-brand-500"></i> Field Enumerator Profile
+          </h3>
+          <button onclick="app.closeProfileModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Enumerator Name</label>
+            <input type="text" id="officer-name-input" value="Amina Mwangi" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Staff / ID Code</label>
+            <input type="text" id="officer-id-input" value="ENUM-2026-88" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Assigned Field Sector</label>
+            <input type="text" id="officer-sector-input" value="Sector 4 - Morogoro Rural" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+          </div>
+        </div>
+
+        <button onclick="app.saveProfile()" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md transition">
+          Save Profile Details
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- APPLICATION LOGIC -->
+  <script>
+    // Application state & methods
+    const app = {
+      isOnline: true,
+      officer: {
+        name: "Amina Mwangi",
+        id: "ENUM-2026-88",
+        sector: "Sector 4 - Morogoro Rural"
+      },
+      currentFormId: null,
+      activeTab: "form",
+      pendingQueue: [],
+      submissionHistory: [],
+      broadcastChannel: null,
+      
+      // Built-in field form templates
+      templates: [
+        {
+          id: "FORM-WASH-001",
+          projectId: "PRJ-01",
+          projectTitle: "School WASH & Hygiene Project",
+          formTitle: "School WASH Infrastructure Monitoring",
+          fields: [
+            { id: "school_name", label: "Target School Name", type: "text", required: true, placeholder: "e.g., Kilimani Primary School" },
+            { id: "functional_latrines", label: "Number of Functional Latrines", type: "number", required: true, min: 0 },
+            { id: "water_access_status", label: "Water Availability Status", type: "select", options: ["Constant Supply", "Intermittent", "No Water Onsite", "Trucked Water"], required: true },
+            { id: "handwashing_soap_available", label: "Soap Available at Wash Stations?", type: "select", options: ["Yes - All stations", "Partial", "None"], required: true },
+            { id: "overall_hygiene_rating", label: "Overall Sanitation Cleanliness Rating", type: "star_rating", max: 5 },
+            { id: "facility_photo", label: "Site Inspection Evidence Photo", type: "photo", required: false },
+            { id: "gps_location", label: "Site GPS Coordinates", type: "gps", required: true },
+            { id: "notes", label: "Enumerator Qualitative Notes", type: "textarea", placeholder: "Observe structural state, repairs needed..." }
+          ]
+        },
+        {
+          id: "FORM-EDU-002",
+          projectId: "PRJ-02",
+          projectTitle: "Primary School Material Distribution",
+          formTitle: "Learning Kit Delivery Tracking Form",
+          fields: [
+            { id: "school_code", label: "School Center Code", type: "text", required: true, placeholder: "SCH-9021" },
+            { id: "kits_received", label: "Textbook Kits Delivered", type: "number", required: true },
+            { id: "headteacher_confirmed", label: "Receipt Verified by Head Teacher?", type: "select", options: ["Verified & Signed", "Pending Verification", "Discrepancy Reported"] },
+            { id: "delivery_photo", label: "Proof of Delivery Photo", type: "photo", required: true },
+            { id: "gps_location", label: "Drop-off GPS Location", type: "gps", required: true }
+          ]
+        }
+      ],
+
+      // Initialize App
+      init() {
+        this.initBroadcastChannel();
+        this.loadOfficerProfile();
+        this.loadLocalData();
+        this.renderFormSelector();
+        this.selectForm(this.templates[0].id);
+        this.updateSyncBadge();
+        lucide.createIcons();
+        this.startClock();
+      },
+
+      // Clock simulation
+      startClock() {
+        const updateTime = () => {
+          const now = new Date();
+          document.getElementById('status-time').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        };
+        updateTime();
+        setInterval(updateTime, 10000);
+      },
+
+      // Inter-app real-time communication via BroadcastChannel
+      initBroadcastChannel() {
+        if ('BroadcastChannel' in window) {
+          this.broadcastChannel = new BroadcastChannel('gmes_me_sync_channel');
+          this.broadcastChannel.onmessage = (event) => {
+            if (event.data && event.data.type === 'PING_MOBILE_APP') {
+              this.showToast('Connected with live G-MEL web dashboard!', 'info');
+            }
+          };
+        }
+      },
+
+      // Profile persistence
+      loadOfficerProfile() {
+        const saved = localStorage.getItem('gmes_mobile_officer');
+        if (saved) {
+          try { this.officer = JSON.parse(saved); } catch(e){}
+        }
+        document.getElementById('header-officer-info').textContent = `${this.officer.name} (${this.officer.id})`;
+        document.getElementById('officer-name-input').value = this.officer.name;
+        document.getElementById('officer-id-input').value = this.officer.id;
+        document.getElementById('officer-sector-input').value = this.officer.sector;
+      },
+
+      saveProfile() {
+        this.officer.name = document.getElementById('officer-name-input').value.trim() || 'Enumerator';
+        this.officer.id = document.getElementById('officer-id-input').value.trim() || 'ENUM-00';
+        this.officer.sector = document.getElementById('officer-sector-input').value.trim() || 'Sector General';
+        localStorage.setItem('gmes_mobile_officer', JSON.stringify(this.officer));
+        document.getElementById('header-officer-info').textContent = `${this.officer.name} (${this.officer.id})`;
+        this.closeProfileModal();
+        this.showToast('Profile updated successfully', 'success');
+      },
+
+      // Local storage queues loading
+      loadLocalData() {
+        const queue = localStorage.getItem('gmes_mobile_queue');
+        if (queue) {
+          try { this.pendingQueue = JSON.parse(queue); } catch(e){ this.pendingQueue = []; }
+        }
+        
+        const history = localStorage.getItem('gmes_mobile_history');
+        if (history) {
+          try { this.submissionHistory = JSON.parse(history); } catch(e){ this.submissionHistory = []; }
+        }
+        this.updateHistoryCounter();
+      },
+
+      savePendingQueue() {
+        localStorage.setItem('gmes_mobile_queue', JSON.stringify(this.pendingQueue));
+        this.updateSyncBadge();
+      },
+
+      saveHistory() {
+        localStorage.setItem('gmes_mobile_history', JSON.stringify(this.submissionHistory));
+        this.updateHistoryCounter();
+      },
+
+      updateHistoryCounter() {
+        document.getElementById('history-counter').textContent = this.submissionHistory.length;
+      },
+
+      // Toggle Online/Offline simulation
+      toggleOnlineMode() {
+        this.isOnline = !this.isOnline;
+        const btn = document.getElementById('toggle-online-btn');
+        const text = document.getElementById('status-text');
+        const dot = document.getElementById('status-indicator-dot');
+        const wifiIcon = document.getElementById('network-signal-icon');
+
+        if (this.isOnline) {
+          btn.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 hover:bg-emerald-500/30 transition";
+          text.textContent = "ONLINE";
+          dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
+          wifiIcon.innerHTML = `<i data-lucide="wifi" class="w-3.5 h-3.5 text-emerald-400"></i>`;
+          this.showToast('Network restored. Ready to sync!', 'info');
+          // Auto sync on reconnection
+          this.performManualSync(true);
+        } else {
+          btn.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 hover:bg-amber-500/30 transition";
+          text.textContent = "OFFLINE";
+          dot.className = "w-1.5 h-1.5 rounded-full bg-amber-400";
+          wifiIcon.innerHTML = `<i data-lucide="wifi-off" class="w-3.5 h-3.5 text-amber-400"></i>`;
+          this.showToast('Switched to Offline Mode. Submissions will queue locally.', 'warning');
+        }
+        lucide.createIcons();
+      },
+
+      // Render dropdown of templates
+      renderFormSelector() {
+        const select = document.getElementById('form-selector');
+        select.innerHTML = this.templates.map(t => 
+          `<option value="${t.id}">${t.projectTitle} - ${t.formTitle}</option>`
+        ).join('');
+      },
+
+      onFormSelectChange(formId) {
+        this.selectForm(formId);
+      },
+
+      selectForm(formId) {
+        this.currentFormId = formId;
+        const template = this.templates.find(t => t.id === formId);
+        if (!template) return;
+
+        document.getElementById('selected-project-code').textContent = template.projectId;
+        
+        const formContainer = document.getElementById('dynamic-form');
+        formContainer.innerHTML = '';
+
+        template.fields.forEach(field => {
+          const fieldEl = document.createElement('div');
+          fieldEl.className = "bg-white dark:bg-slate-800 p-3.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-1.5";
+          
+          let fieldHtml = `
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-200">
+              ${field.label} ${field.required ? '<span class="text-rose-500">*</span>' : ''}
+            </label>
+          `;
+
+          switch (field.type) {
+            case 'text':
+              fieldHtml += `
+                <input type="text" name="${field.id}" ${field.required ? 'required' : ''} 
+                  placeholder="${field.placeholder || ''}" 
+                  class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+              `;
+              break;
+
+            case 'number':
+              fieldHtml += `
+                <input type="number" name="${field.id}" min="${field.min || 0}" ${field.required ? 'required' : ''} 
+                  class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+              `;
+              break;
+
+            case 'textarea':
+              fieldHtml += `
+                <textarea name="${field.id}" rows="3" placeholder="${field.placeholder || ''}"
+                  class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"></textarea>
+              `;
+              break;
+
+            case 'select':
+              fieldHtml += `
+                <select name="${field.id}" ${field.required ? 'required' : ''}
+                  class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                  <option value="">-- Select Option --</option>
+                  ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                </select>
+              `;
+              break;
+
+            case 'star_rating':
+              fieldHtml += `
+                <div class="flex items-center gap-2 py-1" id="star-group-${field.id}">
+                  <input type="hidden" name="${field.id}" id="input-${field.id}" value="3">
+                  ${[1, 2, 3, 4, 5].map(star => `
+                    <button type="button" onclick="app.setRating('${field.id}', ${star})" class="star-btn-${field.id} text-amber-400 hover:scale-110 transition p-1">
+                      <i data-lucide="star" class="w-6 h-6 ${star <= 3 ? 'fill-amber-400' : 'text-slate-300 dark:text-slate-600'}"></i>
+                    </button>
+                  `).join('')}
+                  <span class="text-xs font-bold text-slate-500 ml-2" id="rating-label-${field.id}">3 / 5</span>
+                </div>
+              `;
+              break;
+
+            case 'gps':
+              fieldHtml += `
+                <div class="space-y-2">
+                  <div class="flex gap-2">
+                    <input type="text" id="input-${field.id}" name="${field.id}" readonly ${field.required ? 'required' : ''}
+                      placeholder="GPS Coordinates Not Captured" 
+                      class="flex-1 bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-600 dark:text-slate-300 outline-none">
+                    <button type="button" onclick="app.captureGPS('${field.id}')" 
+                      class="px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 transition shrink-0">
+                      <i data-lucide="map-pin" class="w-4 h-4"></i> Get GPS
+                    </button>
+                  </div>
+                  <div id="gps-status-${field.id}" class="text-[10px] text-slate-400 flex items-center gap-1">
+                    <i data-lucide="info" class="w-3 h-3"></i> Geolocation precision required.
+                  </div>
+                </div>
+              `;
+              break;
+
+            case 'photo':
+              fieldHtml += `
+                <div class="space-y-2">
+                  <input type="hidden" name="${field.id}" id="input-${field.id}" value="">
+                  <div id="photo-preview-container-${field.id}" class="hidden relative w-full h-36 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-900">
+                    <img id="photo-img-${field.id}" class="w-full h-full object-cover" alt="Captured photo">
+                    <button type="button" onclick="app.removePhoto('${field.id}')" class="absolute top-2 right-2 bg-slate-900/80 text-white p-1.5 rounded-full hover:bg-rose-600 transition">
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                  <div id="photo-controls-${field.id}" class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="app.triggerCameraSim('${field.id}')" class="py-2.5 px-3 bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium text-xs rounded-xl border border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center gap-1.5 transition">
+                      <i data-lucide="camera" class="w-4 h-4 text-brand-500"></i> Snap Photo
+                    </button>
+                    <label class="py-2.5 px-3 bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium text-xs rounded-xl border border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center gap-1.5 cursor-pointer transition">
+                      <i data-lucide="upload" class="w-4 h-4 text-emerald-500"></i> Upload File
+                      <input type="file" accept="image/*" class="hidden" onchange="app.handleFileUpload(event, '${field.id}')">
+                    </label>
+                  </div>
+                </div>
+              `;
+              break;
+          }
+
+          formContainer.appendChild(fieldEl);
+        });
+
+        // Submit Action Button
+        const submitBtn = document.createElement('button');
+        submitBtn.type = 'submit';
+        submitBtn.className = "w-full py-3 bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-bold text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2 mt-2";
+        submitBtn.innerHTML = `<i data-lucide="send" class="w-4 h-4"></i> Submit Field Record`;
+        formContainer.appendChild(submitBtn);
+
+        lucide.createIcons();
+      },
+
+      // Star rating field update
+      setRating(fieldId, rating) {
+        document.getElementById(`input-${fieldId}`).value = rating;
+        document.getElementById(`rating-label-${fieldId}`).textContent = `${rating} / 5`;
+        
+        const stars = document.querySelectorAll(`.star-btn-${fieldId} i`);
+        stars.forEach((starIcon, index) => {
+          if (index < rating) {
+            starIcon.setAttribute('class', 'w-6 h-6 fill-amber-400 text-amber-400');
+          } else {
+            starIcon.setAttribute('class', 'w-6 h-6 text-slate-300 dark:text-slate-600');
+          }
+        });
+      },
+
+      // Geolocation Capture API
+      captureGPS(fieldId) {
+        const input = document.getElementById(`input-${fieldId}`);
+        const status = document.getElementById(`gps-status-${fieldId}`);
+        
+        status.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin text-brand-500"></i> Requesting GPS signal...`;
+        lucide.createIcons();
+
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const lat = position.coords.latitude.toFixed(6);
+              const lng = position.coords.longitude.toFixed(6);
+              const acc = Math.round(position.coords.accuracy);
+              
+              input.value = `${lat}, ${lng}`;
+              status.className = "text-[10px] text-emerald-500 font-medium flex items-center gap-1";
+              status.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3"></i> Locked: Accuracy ±${acc}m`;
+              lucide.createIcons();
+              this.showToast('GPS coordinates locked!', 'success');
+            },
+            (error) => {
+              // Fallback mock location if permission denied/unavailable
+              const mockLat = (-6.7924 + (Math.random() - 0.5) * 0.01).toFixed(6);
+              const mockLng = (39.2083 + (Math.random() - 0.5) * 0.01).toFixed(6);
+              input.value = `${mockLat}, ${mockLng}`;
+              status.className = "text-[10px] text-amber-500 font-medium flex items-center gap-1";
+              status.innerHTML = `<i data-lucide="alert-triangle" class="w-3 h-3"></i> Simulated GPS (Device sensor restricted)`;
+              lucide.createIcons();
+              this.showToast('Simulated GPS captured.', 'info');
+            },
+            { timeout: 8000, enableHighAccuracy: true }
+          );
+        } else {
+          input.value = `-6.792411, 39.208322`;
+          status.textContent = "Simulated Location applied.";
+        }
+      },
+
+      // Simulated Camera capture
+      triggerCameraSim(fieldId) {
+        // Generates a clean placeholder site evidence photo canvas data string
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        
+        // Background gradient
+        const grad = ctx.createLinearGradient(0, 0, 400, 300);
+        grad.addColorStop(0, '#0284c7');
+        grad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 400, 300);
+        
+        // Text Stamp
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('GMES FIELD EVIDENCE PHOTO', 20, 40);
+        ctx.font = '12px sans-serif';
+        ctx.fillText(`Timestamp: ${new Date().toLocaleString()}`, 20, 70);
+        ctx.fillText(`Officer: ${this.officer.name} (${this.officer.id})`, 20, 90);
+        
+        // Watermark Box
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(15, 15, 370, 270);
+
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        this.setPhotoPreview(fieldId, dataUrl);
+        this.showToast('Field photo captured successfully!', 'success');
+      },
+
+      handleFileUpload(event, fieldId) {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            this.setPhotoPreview(fieldId, e.target.result);
+            this.showToast('Image uploaded successfully', 'success');
+          };
+          reader.readAsDataURL(file);
+        }
+      },
+
+      setPhotoPreview(fieldId, dataUrl) {
+        document.getElementById(`input-${fieldId}`).value = dataUrl;
+        document.getElementById(`photo-img-${fieldId}`).src = dataUrl;
+        document.getElementById(`photo-preview-container-${fieldId}`).classList.remove('hidden');
+        document.getElementById(`photo-controls-${fieldId}`).classList.add('hidden');
+      },
+
+      removePhoto(fieldId) {
+        document.getElementById(`input-${fieldId}`).value = '';
+        document.getElementById(`photo-img-${fieldId}`).src = '';
+        document.getElementById(`photo-preview-container-${fieldId}`).classList.add('hidden');
+        document.getElementById(`photo-controls-${fieldId}`).classList.remove('hidden');
+      },
+
+      // Handle Submission Logic
+      handleFormSubmit(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const template = this.templates.find(t => t.id === this.currentFormId);
+        
+        const payload = {
+          submissionId: 'SUB-' + Date.now().toString(36).toUpperCase(),
+          formId: template.id,
+          formTitle: template.formTitle,
+          projectId: template.projectId,
+          timestamp: new Date().toISOString(),
+          officer: { ...this.officer },
+          data: {}
+        };
+
+        formData.forEach((value, key) => {
+          payload.data[key] = value;
+        });
+
+        // Always log into local history
+        this.submissionHistory.unshift(payload);
+        this.saveHistory();
+
+        if (this.isOnline) {
+          this.syncRecordToSystem(payload);
+        } else {
+          // Add to pending queue when offline
+          this.pendingQueue.push(payload);
+          this.savePendingQueue();
+          this.showToast('Offline Mode: Submission saved to pending queue.', 'warning');
+        }
+
+        // Reset form inputs
+        e.target.reset();
+        // Reset specific preview fields
+        template.fields.forEach(f => {
+          if (f.type === 'photo') this.removePhoto(f.id);
+          if (f.type === 'star_rating') this.setRating(f.id, 3);
+        });
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+
+      // Dispatch payload to G-MEL system persistence & channel
+      syncRecordToSystem(record) {
+        // 1. Direct Local Storage Sync into `gmes_me_projects`
+        const localProjects = localStorage.getItem('gmes_me_projects');
+        if (localProjects) {
+          try {
+            const projects = JSON.parse(localProjects);
+            const prj = projects.find(p => p.id === record.projectId);
+            if (prj) {
+              if (!prj.submissions) prj.submissions = [];
+              prj.submissions.unshift(record);
+              localStorage.setItem('gmes_me_projects', JSON.stringify(projects));
+            }
+          } catch(e) {
+            console.error('Error syncing to local gmes_me_projects', e);
+          }
+        }
+
+        // 2. Broadcast Channel event to open Web App windows
+        if (this.broadcastChannel) {
+          this.broadcastChannel.postMessage({
+            type: 'NEW_FIELD_SUBMISSION',
+            payload: record
+          });
+        }
+
+        this.showToast(' Record submitted & synced to G-MEL Platform!', 'success');
+      },
+
+      // Sync All Queue Items
+      performManualSync(quiet = false) {
+        if (this.pendingQueue.length === 0) {
+          if (!quiet) this.showToast('Sync queue is empty.', 'info');
+          return;
+        }
+
+        if (!this.isOnline) {
+          this.showToast('Cannot sync while Offline.', 'error');
+          return;
+        }
+
+        const count = this.pendingQueue.length;
+        const icon = document.getElementById('sync-icon');
+        icon.classList.add('animate-spin');
+
+        setTimeout(() => {
+          while (this.pendingQueue.length > 0) {
+            const item = this.pendingQueue.shift();
+            this.syncRecordToSystem(item);
+          }
+          this.savePendingQueue();
+          icon.classList.remove('animate-spin');
+          this.renderQueueList();
+          this.showToast(`Successfully synced ${count} pending record(s)!`, 'success');
+        }, 1200);
+      },
+
+      updateSyncBadge() {
+        const badge = document.getElementById('pending-count-badge');
+        const modalCount = document.getElementById('modal-queue-count');
+        const count = this.pendingQueue.length;
+
+        if (count > 0) {
+          badge.textContent = count;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+        if (modalCount) modalCount.textContent = `${count} Record(s)`;
+      },
+
+      // View Switcher (Form / History Log)
+      switchTab(tab) {
+        this.activeTab = tab;
+        const formBtn = document.getElementById('nav-btn-form');
+        const historyBtn = document.getElementById('nav-btn-history');
+        const mainContent = document.getElementById('main-content');
+
+        if (tab === 'form') {
+          formBtn.className = "flex flex-col items-center gap-1 text-brand-600 dark:text-brand-400 transition";
+          historyBtn.className = "flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition";
+          
+          this.renderFormSelector();
+          this.selectForm(this.currentFormId || this.templates[0].id);
+        } else if (tab === 'history') {
+          historyBtn.className = "flex flex-col items-center gap-1 text-brand-600 dark:text-brand-400 transition";
+          formBtn.className = "flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition";
+          
+          this.renderHistoryView(mainContent);
+        }
+      },
+
+      renderHistoryView(container) {
+        let html = `
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <h2 class="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <i data-lucide="history" class="w-4 h-4 text-brand-500"></i> Field Submission History
+              </h2>
+              <span class="text-xs text-slate-500">${this.submissionHistory.length} total</span>
+            </div>
+        `;
+
+        if (this.submissionHistory.length === 0) {
+          html += `
+            <div class="bg-white dark:bg-slate-800 p-8 text-center rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+              <i data-lucide="inbox" class="w-8 h-8 text-slate-400 mx-auto"></i>
+              <p class="text-xs font-semibold text-slate-500">No field records submitted yet.</p>
+            </div>
+          `;
+        } else {
+          html += this.submissionHistory.map(item => `
+            <div class="bg-white dark:bg-slate-800 p-3.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-2">
+              <div class="flex justify-between items-start">
+                <div>
+                  <span class="text-[10px] font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/40 px-2 py-0.5 rounded-full">${item.projectId}</span>
+                  <h4 class="font-bold text-xs text-slate-800 dark:text-slate-100 mt-1">${item.formTitle}</h4>
+                </div>
+                <span class="text-[10px] text-slate-400">${new Date(item.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+              </div>
+              
+              <div class="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl">
+                ${Object.entries(item.data).map(([k, v]) => {
+                  if (!v) return '';
+                  if (v.startsWith('data:image')) return `<div class="text-[10px] text-brand-500">📷 Photo evidence attached</div>`;
+                  return `<div><strong class="capitalize">${k.replace(/_/g, ' ')}:</strong> ${v}</div>`;
+                }).join('')}
+              </div>
+
+              <div class="flex justify-between items-center text-[10px] text-slate-400 pt-1">
+                <span>ID: ${item.submissionId}</span>
+                <span class="text-emerald-500 font-semibold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Saved</span>
+              </div>
+            </div>
+          `).join('');
+        }
+
+        html += `</div>`;
+        container.innerHTML = html;
+        lucide.createIcons();
+      },
+
+      // Modals Control
+      openSyncModal() {
+        this.renderQueueList();
+        document.getElementById('sync-modal').classList.remove('hidden');
+      },
+
+      closeSyncModal() {
+        document.getElementById('sync-modal').classList.add('hidden');
+      },
+
+      renderQueueList() {
+        const container = document.getElementById('queue-item-list');
+        this.updateSyncBadge();
+
+        if (this.pendingQueue.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-6 text-slate-400 text-xs flex flex-col items-center gap-1">
+              <i data-lucide="check-circle-2" class="w-6 h-6 text-emerald-500"></i>
+              All field records are fully synced!
+            </div>
+          `;
+        } else {
+          container.innerHTML = this.pendingQueue.map((item, index) => `
+            <div class="bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
+              <div>
+                <p class="font-bold text-slate-800 dark:text-slate-200">${item.formTitle}</p>
+                <p class="text-[10px] text-slate-400">${item.submissionId} • ${new Date(item.timestamp).toLocaleTimeString()}</p>
+              </div>
+              <span class="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg">Pending</span>
+            </div>
+          `).join('');
+        }
+        lucide.createIcons();
+      },
+
+      openProfileModal() {
+        document.getElementById('profile-modal').classList.remove('hidden');
+      },
+
+      closeProfileModal() {
+        document.getElementById('profile-modal').classList.add('hidden');
+      },
+
+      // Toast Banner Feedback
+      showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        
+        let bg = 'bg-slate-800 text-white';
+        let icon = 'info';
+        if (type === 'success') { bg = 'bg-emerald-600 text-white'; icon = 'check-circle'; }
+        if (type === 'warning') { bg = 'bg-amber-600 text-white'; icon = 'alert-triangle'; }
+        if (type === 'error') { bg = 'bg-rose-600 text-white'; icon = 'x-circle'; }
+
+        toast.className = `${bg} px-3.5 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto`;
+        toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 shrink-0"></i> <span>${message}</span>`;
+
+        container.appendChild(toast);
+        lucide.createIcons();
+
+        setTimeout(() => {
+          toast.classList.remove('translate-y-2', 'opacity-0');
+        }, 10);
+
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'translate-y-2');
+          setTimeout(() => toast.remove(), 300);
+        }, 3500);
+      }
+    };
+
+    // Run Application on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      app.init();
+    });
+  </script>
+</body>
+</html>

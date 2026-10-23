@@ -1,7 +1,7 @@
 {
   "name": "G-MEL-SYSTEM",
   "short_name": "G-MEL System",
-  "start_url": "/https://g-mel-system.github.io/Go/",
+  "start_url": "https://g-mel-system.github.io/Go/",
   "display": "standalone",
   "icons": [
     {

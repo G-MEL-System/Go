@@ -1,0 +1,11 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "g-mel-system.github",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "G-MEL System",
+  "start_url": "/https://g-mel-system.github.io/Go/",
+  "theme_color": "#ffffff"
+}

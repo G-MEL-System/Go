@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>GMES Mobile Collect - Field Data Collection</title>
+
+  <!-- PWA & Mobile Meta Tags -->
+  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22GMES%20Mobile%20Collect%22%2C%22short_name%22%3A%22GMES%20Collect%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%23075985%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F1484%2F1484831.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+  <meta name="theme-color" content="#075985">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GMES Collect">
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -225,8 +233,29 @@
 
   </div>
 
-  <!-- APPLICATION LOGIC -->
+  <!-- APPLICATION LOGIC & SERVICE WORKER REGISTRATION -->
   <script>
+    // Service Worker inline setup for PWA offline capabilities
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        const CACHE_NAME = 'gmes-pwa-cache-v1';
+        self.addEventListener('install', (e) => {
+          self.skipWaiting();
+        });
+        self.addEventListener('activate', (e) => {
+          e.waitUntil(clients.claim());
+        });
+        self.addEventListener('fetch', (e) => {
+          e.respondWith(
+            fetch(e.request).catch(() => caches.match(e.request))
+          );
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).catch(() => {});
+    }
+
     // Application state & methods
     const app = {
       isOnline: true,
@@ -575,20 +604,17 @@
 
       // Simulated Camera capture
       triggerCameraSim(fieldId) {
-        // Generates a clean placeholder site evidence photo canvas data string
         const canvas = document.createElement('canvas');
         canvas.width = 400;
         canvas.height = 300;
         const ctx = canvas.getContext('2d');
         
-        // Background gradient
         const grad = ctx.createLinearGradient(0, 0, 400, 300);
         grad.addColorStop(0, '#0284c7');
         grad.addColorStop(1, '#0f172a');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 400, 300);
         
-        // Text Stamp
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 16px sans-serif';
         ctx.fillText('GMES FIELD EVIDENCE PHOTO', 20, 40);
@@ -596,7 +622,6 @@
         ctx.fillText(`Timestamp: ${new Date().toLocaleString()}`, 20, 70);
         ctx.fillText(`Officer: ${this.officer.name} (${this.officer.id})`, 20, 90);
         
-        // Watermark Box
         ctx.strokeStyle = 'rgba(255,255,255,0.4)';
         ctx.lineWidth = 3;
         ctx.strokeRect(15, 15, 370, 270);
@@ -652,22 +677,18 @@
           payload.data[key] = value;
         });
 
-        // Always log into local history
         this.submissionHistory.unshift(payload);
         this.saveHistory();
 
         if (this.isOnline) {
           this.syncRecordToSystem(payload);
         } else {
-          // Add to pending queue when offline
           this.pendingQueue.push(payload);
           this.savePendingQueue();
           this.showToast('Offline Mode: Submission saved to pending queue.', 'warning');
         }
 
-        // Reset form inputs
         e.target.reset();
-        // Reset specific preview fields
         template.fields.forEach(f => {
           if (f.type === 'photo') this.removePhoto(f.id);
           if (f.type === 'star_rating') this.setRating(f.id, 3);
@@ -678,7 +699,6 @@
 
       // Dispatch payload to G-MEL system persistence & channel
       syncRecordToSystem(record) {
-        // 1. Direct Local Storage Sync into `gmes_me_projects`
         const localProjects = localStorage.getItem('gmes_me_projects');
         if (localProjects) {
           try {
@@ -694,7 +714,6 @@
           }
         }
 
-        // 2. Broadcast Channel event to open Web App windows
         if (this.broadcastChannel) {
           this.broadcastChannel.postMessage({
             type: 'NEW_FIELD_SUBMISSION',
@@ -702,7 +721,7 @@
           });
         }
 
-        this.showToast(' Record submitted & synced to G-MEL Platform!', 'success');
+        this.showToast('Record submitted & synced to G-MEL Platform!', 'success');
       },
 
       // Sync All Queue Items
@@ -747,7 +766,6 @@
         if (modalCount) modalCount.textContent = `${count} Record(s)`;
       },
 
-      // View Switcher (Form / History Log)
       switchTab(tab) {
         this.activeTab = tab;
         const formBtn = document.getElementById('nav-btn-form');
@@ -818,7 +836,6 @@
         lucide.createIcons();
       },
 
-      // Modals Control
       openSyncModal() {
         this.renderQueueList();
         document.getElementById('sync-modal').classList.remove('hidden');
@@ -861,7 +878,6 @@
         document.getElementById('profile-modal').classList.add('hidden');
       },
 
-      // Toast Banner Feedback
       showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
@@ -889,7 +905,6 @@
       }
     };
 
-    // Run Application on Load
     window.addEventListener('DOMContentLoaded', () => {
       app.init();
     });

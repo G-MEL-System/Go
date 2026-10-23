@@ -874,5 +874,18 @@
     const root = ReactDOM.createRoot(rootElement);
     root.render(<App />);
   </script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/Go/sw.js')
+        .then((registration) => {
+          console.log('ServiceWorker registered with scope:', registration.scope);
+        })
+        .catch((error) => {
+          console.log('ServiceWorker registration failed:', error);
+        });
+    });
+  }
+</script>
 </body>
 </html>
